@@ -1,0 +1,179 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { videoAPI, commentAPI, likeAPI, subscriptionAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import './VideoDetail.css';
+
+function VideoDetail() {
+  const { videoId } = useParams();
+  const { user } = useAuth();
+  const [video, setVideo] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [commentContent, setCommentContent] = useState('');
+  const [liked, setLiked] = useState(false);
+
+  useEffect(() => {
+    fetchVideoData();
+    fetchComments();
+  }, [videoId]);
+
+  const fetchVideoData = async () => {
+    try {
+      const { data } = await videoAPI.getVideoById(videoId);
+      setVideo(data.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch video:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchComments = async () => {
+    try {
+      const { data } = await commentAPI.getVideoComments(videoId, { page: 1, limit: 20 });
+      setComments(data.data.comments);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+    }
+  };
+
+  const handleLike = async () => {
+    try {
+      await likeAPI.toggleVideoLike(videoId);
+      setLiked(!liked);
+      fetchVideoData(); // Refresh to get updated like count
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!video?.owner) return;
+    try {
+      await subscriptionAPI.toggleSubscription(video.owner._id);
+      fetchVideoData(); // Refresh to get updated subscription status
+    } catch (error) {
+      console.error('Failed to toggle subscription:', error);
+    }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!commentContent.trim()) return;
+
+    try {
+      await commentAPI.addComment(videoId, commentContent);
+      setCommentContent('');
+      fetchComments();
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      alert(error.response?.data?.message || 'Failed to add comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Delete this comment?')) return;
+    
+    try {
+      await commentAPI.deleteComment(commentId);
+      fetchComments();
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+    }
+  };
+
+  if (loading) return <div className="loading">Loading video...</div>;
+  if (!video) return <div className="error">Video not found</div>;
+
+  return (
+    <div className="video-detail-page">
+      <div className="video-player-section">
+        <div className="video-player">
+          <video controls src={video.videoFile} poster={video.thumbnail}>
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        <div className="video-info-section">
+          <h1 className="video-title">{video.title}</h1>
+          
+          <div className="video-stats">
+            <span>{video.views} views</span>
+            <div className="video-actions">
+              {user && (
+                <button onClick={handleLike} className="btn btn-icon">
+                  👍 {video.likesCount}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="channel-info">
+            <Link to={`/channel/${video.owner.username}`} className="channel-link">
+              <img src={video.owner.avatar} alt={video.owner.username} className="channel-avatar" />
+              <div>
+                <div className="channel-name">{video.owner.username}</div>
+                <div className="subscriber-count">{video.owner.subscriberCount} subscribers</div>
+              </div>
+            </Link>
+            
+            {user && user._id !== video.owner._id && (
+              <button onClick={handleSubscribe} className="btn btn-primary">
+                {video.owner.isSubscribed ? 'Unsubscribe' : 'Subscribe'}
+              </button>
+            )}
+          </div>
+
+          <div className="video-description">
+            <p>{video.description}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="comments-section">
+        <h2>{comments.length} Comments</h2>
+        
+        {user && (
+          <form onSubmit={handleAddComment} className="comment-form">
+            <input
+              type="text"
+              placeholder="Add a comment..."
+              value={commentContent}
+              onChange={(e) => setCommentContent(e.target.value)}
+              maxLength={100}
+            />
+            <button type="submit" className="btn btn-primary">Comment</button>
+          </form>
+        )}
+
+        <div className="comments-list">
+          {comments.map((comment) => (
+            <div key={comment._id} className="comment">
+              <img src={comment.owner.avatar} alt={comment.owner.username} className="comment-avatar" />
+              <div className="comment-content">
+                <div className="comment-header">
+                  <span className="comment-author">{comment.owner.username}</span>
+                  <span className="comment-time">
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p>{comment.content}</p>
+                {user && user._id === comment.owner._id && (
+                  <button 
+                    onClick={() => handleDeleteComment(comment._id)}
+                    className="btn btn-text btn-small"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default VideoDetail;

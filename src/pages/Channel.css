@@ -1,0 +1,130 @@
+.channel-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.channel-header {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cover-image {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 200px;
+  max-height: 300px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.channel-info-container {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.channel-profile {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex: 1;
+}
+
+.channel-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.channel-details h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.channel-username {
+  color: #606060;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.channel-stats {
+  color: #606060;
+  font-size: 14px;
+}
+
+.channel-stats span {
+  margin-right: 4px;
+}
+
+.channel-videos-section {
+  margin-top: 30px;
+}
+
+.channel-videos-section h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.no-videos {
+  text-align: center;
+  padding: 40px;
+  color: #606060;
+  background: white;
+  border-radius: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .channel-page {
+    padding: 0 12px;
+  }
+
+  .cover-image {
+    min-height: 150px;
+    max-height: 200px;
+  }
+
+  .channel-info-container {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  
+  .channel-profile {
+    width: 100%;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .channel-avatar-large {
+    width: 64px;
+    height: 64px;
+  }
+
+  .channel-details h1 {
+    font-size: 20px;
+  }
+  
+  .channel-info-container .btn {
+    width: 100%;
+  }
+}
