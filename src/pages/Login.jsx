@@ -24,7 +24,6 @@ function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const result = await login(formData);
       
