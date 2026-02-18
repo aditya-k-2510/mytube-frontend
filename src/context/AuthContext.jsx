@@ -49,10 +49,14 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        'Login failed. Please try again.';
-      return { success: false, error: message };
+        let message = 'Login failed.';
+        console.log(error)
+        if (error.response && error.response.data) {
+          console.log(error.response.data.message)
+          message = error.response.data.message || message;
+        }
+
+        return { success: false, error: message };
     }
   };
 
