@@ -3,6 +3,8 @@ import { dashboardAPI, videoAPI } from '../utils/api';
 import VideoCard from '../components/VideoCard';
 import './Dashboard.css';
 
+const CHUNK_SIZE = 5 * 1024 * 1024;
+
 function Dashboard() {
   const [stats, setStats] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -44,14 +46,28 @@ function Dashboard() {
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('title', uploadData.title);
-      formData.append('description', uploadData.description);
-      formData.append('video', videoFile);
-      formData.append('thumbnail', thumbnail);
+      const initForm = new FormData();
+      initForm.append('title', uploadData.title);
+      initForm.append('description', uploadData.description);
+      initForm.append('thumbnail', thumbnail);
+      const initRes = await videoAPI.initUpload(initForm);
+      const fileId = initRes.data.data;
+      const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
+      for (let i = 0; i < totalChunks; i++) {
 
-      await videoAPI.publishVideo(formData);
-      alert('Video uploaded successfully!');
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, videoFile.size);
+
+        const chunk = videoFile.slice(start, end);
+
+        const chunkForm = new FormData();
+        chunkForm.append('chunkIndex', i);
+        chunkForm.append('totalChunks', totalChunks);
+        chunkForm.append('fileName', videoFile.name);
+        chunkForm.append('chunk', chunk);
+        await videoAPI.uploadChunk(chunkForm, fileId);
+      }
+      alert("Video uploaded successfully 🚀");
       setUploadFormOpen(false);
       setUploadData({ title: '', description: '' });
       setVideoFile(null);
@@ -59,6 +75,10 @@ function Dashboard() {
       fetchDashboardData();
     } catch (error) {
       console.error('Upload failed:', error);
+      if(error.response?.status == 410) {
+        alert("session expired....please restart");
+        return;
+      }
       alert(error.response?.data?.message || 'Upload failed');
     } finally {
       setUploading(false);
