@@ -71,7 +71,10 @@ export const userAPI = {
 export const videoAPI = {
   getAllVideos: (params) => api.get('/videos', { params }),
   getVideoById: (videoId) => api.get(`/videos/${videoId}`),
-  publishVideo: (formData) => api.post('/videos', formData, {
+  initUpload: (formData) => api.post('/videos/init-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadChunk: (formData, fileId) => api.post(`/videos/chunk-upload/${fileId}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   updateVideo: (videoId, formData) => api.patch(`/videos/${videoId}`, formData, {
