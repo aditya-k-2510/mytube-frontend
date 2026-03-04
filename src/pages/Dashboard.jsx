@@ -53,6 +53,7 @@ function Dashboard() {
       const initRes = await videoAPI.initUpload(initForm);
       const fileId = initRes.data.data;
       const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
+      const chunkPromises = [];
       for (let i = 0; i < totalChunks; i++) {
 
         const start = i * CHUNK_SIZE;
@@ -61,12 +62,12 @@ function Dashboard() {
         const chunk = videoFile.slice(start, end);
 
         const chunkForm = new FormData();
-        chunkForm.append('chunkIndex', i);
         chunkForm.append('totalChunks', totalChunks);
         chunkForm.append('fileName', videoFile.name);
         chunkForm.append('chunk', chunk);
-        await videoAPI.uploadChunk(chunkForm, fileId);
+        chunkPromises.push(videoAPI.uploadChunk(chunkForm, fileId, i));
       }
+      await Promise.all(chunkPromises);
       alert("Video uploaded successfully 🚀");
       setUploadFormOpen(false);
       setUploadData({ title: '', description: '' });
