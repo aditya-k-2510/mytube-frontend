@@ -3,7 +3,7 @@ import { dashboardAPI, videoAPI } from '../utils/api';
 import VideoCard from '../components/VideoCard';
 import './Dashboard.css';
 
-const CHUNK_SIZE = 5 * 1024 * 1024;
+const CHUNK_SIZE = 1024 * 1024;
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -17,7 +17,7 @@ function Dashboard() {
   const [videoFile, setVideoFile] = useState(null);
   const [thumbnail, setThumbnail] = useState(null);
   const [uploading, setUploading] = useState(false);
-
+  const [uploadProgress, setUploadProgress] = useState(0);
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -39,6 +39,7 @@ function Dashboard() {
 
   const handleUploadVideo = async (e) => {
     e.preventDefault();
+    setUploadProgress(0);
     if (!videoFile || !thumbnail) {
       alert('Please select video and thumbnail');
       return;
@@ -54,22 +55,31 @@ function Dashboard() {
       const fileId = initRes.data.data;
       const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
       const chunkPromises = [];
-      for (let i = 0; i < totalChunks; i++) {
-
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, videoFile.size);
-
-        const chunk = videoFile.slice(start, end);
-
-        const chunkForm = new FormData();
-        chunkForm.append('totalChunks', totalChunks);
-        chunkForm.append('fileName', videoFile.name);
-        chunkForm.append('chunk', chunk);
-        chunkPromises.push(videoAPI.uploadChunk(chunkForm, fileId, i));
+      let uploadedChunks = 0;
+      const BATCH_SIZE = 5;
+      let currentChunkIndex = 0;
+      while(currentChunkIndex<totalChunks) {
+        for (let i = 0; i < BATCH_SIZE && currentChunkIndex<totalChunks; i++) {
+            const start = currentChunkIndex * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, videoFile.size);
+            const chunk = videoFile.slice(start, end);
+            const chunkForm = new FormData();
+            chunkForm.append('totalChunks', totalChunks);
+            chunkForm.append('fileName', videoFile.name);
+            chunkForm.append('chunk', chunk);
+            const promise = videoAPI.uploadChunk(chunkForm, fileId, currentChunkIndex).then(() => {
+              uploadedChunks++;
+              const progress = Math.round((uploadedChunks/totalChunks)*100);
+              setUploadProgress(progress);
+            });
+            chunkPromises.push(promise);
+            currentChunkIndex++;
+        }
+        await Promise.all(chunkPromises);
       }
-      await Promise.all(chunkPromises);
       alert("Video uploaded successfully 🚀");
       setUploadFormOpen(false);
+      setUploadProgress(0);
       setUploadData({ title: '', description: '' });
       setVideoFile(null);
       setThumbnail(null);
@@ -178,6 +188,17 @@ function Dashboard() {
           <button type="submit" className="btn btn-primary" disabled={uploading}>
             {uploading ? 'Uploading...' : 'Upload Video'}
           </button>
+          {uploading && (
+          <div className="upload-progress">
+            <div className="progress-bar-container">
+              <div
+                className="progress-bar"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+            <p>{uploadProgress}% uploaded</p>
+          </div>
+          )}
         </form>
       )}
 
