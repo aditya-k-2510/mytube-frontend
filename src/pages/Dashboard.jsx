@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { dashboardAPI, videoAPI } from '../utils/api';
 import VideoCard from '../components/VideoCard';
 import './Dashboard.css';
@@ -18,6 +18,7 @@ function Dashboard() {
   const [thumbnail, setThumbnail] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadedChunks = useRef(0);
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -37,14 +38,26 @@ function Dashboard() {
     }
   };
 
+  const uploadWithRetry = async (chunkForm, fileId, chunkIndex) => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await videoAPI.uploadChunk(chunkForm, fileId, chunkIndex);
+      } catch (err) {
+        if (attempt === 3) throw err; // all retries exhausted, bubble up
+        console.log(`retrying chunk ${chunkIndex}`)
+        await new Promise(r => setTimeout(r, 1000 * attempt)); // 1s, 2s, 3s backoff
+      }
+    }
+  }
+
   const handleUploadVideo = async (e) => {
     e.preventDefault();
+    uploadedChunks.current = 0;
     setUploadProgress(0);
     if (!videoFile || !thumbnail) {
       alert('Please select video and thumbnail');
       return;
     }
-
     setUploading(true);
     try {
       const initForm = new FormData();
@@ -54,11 +67,10 @@ function Dashboard() {
       const initRes = await videoAPI.initUpload(initForm);
       const fileId = initRes.data.data;
       const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
-      const chunkPromises = [];
-      let uploadedChunks = 0;
       const BATCH_SIZE = 5;
       let currentChunkIndex = 0;
       while(currentChunkIndex<totalChunks) {
+        const chunkPromises = [];
         for (let i = 0; i < BATCH_SIZE && currentChunkIndex<totalChunks; i++) {
             const start = currentChunkIndex * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, videoFile.size);
@@ -67,11 +79,16 @@ function Dashboard() {
             chunkForm.append('totalChunks', totalChunks);
             chunkForm.append('fileName', videoFile.name);
             chunkForm.append('chunk', chunk);
-            const promise = videoAPI.uploadChunk(chunkForm, fileId, currentChunkIndex).then(() => {
-              uploadedChunks++;
-              const progress = Math.round((uploadedChunks/totalChunks)*100);
+            const promise = uploadWithRetry(chunkForm, fileId, currentChunkIndex).then(() => {
+              uploadedChunks.current++;
+              const progress = Math.round((uploadedChunks.current/totalChunks)*100);
               setUploadProgress(progress);
             });
+            // const promise = videoAPI.uploadChunk(chunkForm, fileId, currentChunkIndex).then(()=>{
+            //   uploadedChunks.current++;
+            //   const progress = Math.round((uploadedChunks.current/totalChunks)*100);
+            //   setUploadProgress(progress);
+            // });
             chunkPromises.push(promise);
             currentChunkIndex++;
         }
