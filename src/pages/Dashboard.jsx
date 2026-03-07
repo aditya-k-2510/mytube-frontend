@@ -19,6 +19,16 @@ function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const uploadedChunks = useRef(0);
+
+  // useEffect(() => {
+  //   let pending = JSON.parse(localStorage.getItem("pendingUpload") || "{}");
+  //   if (pending.createdAt) {
+  //     const twoMinutes = 5 * 60 * 1000;
+  //     if (Date.now() - pending.createdAt > twoMinutes) {
+  //       localStorage.removeItem("pendingUpload");
+  //     }
+  //   }
+  // }, []);
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -64,14 +74,48 @@ function Dashboard() {
       initForm.append('title', uploadData.title);
       initForm.append('description', uploadData.description);
       initForm.append('thumbnail', thumbnail);
-      const initRes = await videoAPI.initUpload(initForm);
-      const fileId = initRes.data.data;
+      let uploadedChunksList = [];
+      let fileId;
+      let pending = JSON.parse(localStorage.getItem("pendingUpload")||"{}");
+      const hasPending = Object.keys(pending).length !== 0;
+      if (hasPending && 
+          pending.title == uploadData.title && 
+          pending.description == uploadData.description && 
+          thumbnail.name==pending.thumbnailName && 
+          videoFile.name == pending.videoFileName) {
+
+        fileId = pending.fileId;
+        const { data } = await videoAPI.getUploadStatus(fileId)
+        uploadedChunksList = data.data
+        console.log(uploadedChunksList)
+      }
+      else {
+        const initRes = await videoAPI.initUpload(initForm);
+        fileId = initRes.data.data;
+        pending = {
+              fileId,
+              thumbnailName: thumbnail.name,
+              videoFileName: videoFile.name,
+              title: uploadData.title,
+              description: uploadData.description,
+              createdAt: Date.now()
+        };
+        localStorage.setItem("pendingUpload", JSON.stringify(pending))
+      }
+      const uploadedChunksSet = new Set(uploadedChunksList)
       const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
       const BATCH_SIZE = 5;
       let currentChunkIndex = 0;
       while(currentChunkIndex<totalChunks) {
         const chunkPromises = [];
         for (let i = 0; i < BATCH_SIZE && currentChunkIndex<totalChunks; i++) {
+            if(uploadedChunksSet.has(currentChunkIndex)) {
+                currentChunkIndex++;
+                uploadedChunks.current++;
+                const progress = Math.round((uploadedChunks.current/totalChunks)*100);
+                setUploadProgress(progress);
+                continue;
+            }
             const start = currentChunkIndex * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, videoFile.size);
             const chunk = videoFile.slice(start, end);
@@ -94,7 +138,9 @@ function Dashboard() {
         }
         await Promise.all(chunkPromises);
       }
+      setUploadProgress(100);
       alert("Video uploaded successfully 🚀");
+      localStorage.removeItem("pendingUpload")
       setUploadFormOpen(false);
       setUploadProgress(0);
       setUploadData({ title: '', description: '' });
@@ -152,7 +198,19 @@ function Dashboard() {
 
       <div className="dashboard-actions">
         <button 
-          onClick={() => setUploadFormOpen(!uploadFormOpen)} 
+          onClick={() => {
+            if (!uploadFormOpen) {
+            const pending = JSON.parse(localStorage.getItem("pendingUpload"));
+            if (pending) {
+                setUploadData({
+                    title: pending.title || "",
+                    description: pending.description || ""
+                });
+              }
+            }
+            setUploadFormOpen(!uploadFormOpen)
+          }
+        } 
           className="btn btn-primary"
         >
           {uploadFormOpen ? 'Cancel Upload' : 'Upload New Video'}
