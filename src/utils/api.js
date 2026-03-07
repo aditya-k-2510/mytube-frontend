@@ -1,5 +1,4 @@
 import axios from 'axios';
-
 const API_BASE_URL = '/api/v1';
 
 const api = axios.create({
@@ -77,6 +76,7 @@ export const videoAPI = {
   uploadChunk: (formData, fileId, chunkIndex) => api.put(`/videos/chunk-upload/${fileId}/${chunkIndex}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  getUploadStatus: (fileId) => api.get(`/videos/upload-status/${fileId}`),
   updateVideo: (videoId, formData) => api.patch(`/videos/${videoId}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
