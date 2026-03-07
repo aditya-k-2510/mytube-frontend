@@ -74,7 +74,7 @@ export const videoAPI = {
   initUpload: (formData) => api.post('/videos/init-upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  uploadChunk: (formData, fileId, chunkIndex) => api.post(`/videos/chunk-upload/${fileId}/${chunkIndex}`, formData, {
+  uploadChunk: (formData, fileId, chunkIndex) => api.put(`/videos/chunk-upload/${fileId}/${chunkIndex}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   updateVideo: (videoId, formData) => api.patch(`/videos/${videoId}`, formData, {
