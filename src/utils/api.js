@@ -76,7 +76,11 @@ export const videoAPI = {
   uploadChunk: (formData, fileId, chunkIndex) => api.put(`/videos/chunk-upload/${fileId}/${chunkIndex}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+
   getUploadStatus: (fileId) => api.get(`/videos/upload-status/${fileId}`),
+
+  finishVideoUpload: (data, fileId) => api.post(`videos/finish-upload/${fileId}`, data),
+
   updateVideo: (videoId, formData) => api.patch(`/videos/${videoId}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
