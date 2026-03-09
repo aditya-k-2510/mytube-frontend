@@ -102,44 +102,33 @@ function Dashboard() {
         };
         localStorage.setItem("pendingUpload", JSON.stringify(pending))
       }
-      const uploadedChunksSet = new Set(uploadedChunksList)
       const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
       const BATCH_SIZE = 5;
-      let currentChunkIndex = 0;
+      uploadedChunks.current = (Math.max(Math.floor(uploadedChunksList.length/BATCH_SIZE)-1), 0)*BATCH_SIZE;
+      let currentChunkIndex = uploadedChunks.current;
       while(currentChunkIndex<totalChunks) {
         const chunkPromises = [];
         for (let i = 0; i < BATCH_SIZE && currentChunkIndex<totalChunks; i++) {
-            if(uploadedChunksSet.has(currentChunkIndex)) {
-                currentChunkIndex++;
-                uploadedChunks.current++;
-                const progress = Math.round((uploadedChunks.current/totalChunks)*100);
-                setUploadProgress(progress);
-                continue;
-            }
             const start = currentChunkIndex * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, videoFile.size);
             const chunk = videoFile.slice(start, end);
             const chunkForm = new FormData();
-            chunkForm.append('totalChunks', totalChunks);
-            chunkForm.append('fileName', videoFile.name);
             chunkForm.append('chunk', chunk);
             const promise = uploadWithRetry(chunkForm, fileId, currentChunkIndex).then(() => {
               uploadedChunks.current++;
               const progress = Math.round((uploadedChunks.current/totalChunks)*100);
               setUploadProgress(progress);
             });
-            // const promise = videoAPI.uploadChunk(chunkForm, fileId, currentChunkIndex).then(()=>{
-            //   uploadedChunks.current++;
-            //   const progress = Math.round((uploadedChunks.current/totalChunks)*100);
-            //   setUploadProgress(progress);
-            // });
             chunkPromises.push(promise);
             currentChunkIndex++;
         }
         await Promise.all(chunkPromises);
       }
-      setUploadProgress(100);
-      alert("Video uploaded successfully 🚀");
+      await videoAPI.finishVideoUpload({
+        totalChunks,
+        fileName: videoFile.name
+      }, fileId);
+      alert("Video uploaded successfully!!!");
       localStorage.removeItem("pendingUpload")
       setUploadFormOpen(false);
       setUploadProgress(0);
