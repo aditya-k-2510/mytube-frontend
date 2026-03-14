@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { videoAPI, commentAPI, likeAPI, subscriptionAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,9 @@ import './VideoDetail.css';
 function VideoDetail() {
   const { videoId } = useParams();
   const { user } = useAuth();
+  const videoRef = useRef(null);
+  const lastWatchTime = useRef(0);
+  const lastVideoDuration = useRef(0);
   const [video, setVideo] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +20,46 @@ function VideoDetail() {
     fetchVideoData();
     fetchComments();
   }, [videoId]);
+
+  useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      const v = videoRef.current;
+      if (v && v.duration && v.currentTime>0) {
+        navigator.sendBeacon(
+          `/api/v1/videos/watch-progress/${videoId}`,
+          JSON.stringify(
+          {
+            watchTime: v.currentTime,
+            duration: v.duration
+          }
+        ));
+      }
+    }
+  };
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  return () => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+}, [videoId]);
+
+  useEffect(() => {
+      return () => {
+        console.log(lastWatchTime.current);
+        console.log(lastVideoDuration.current);
+        if (lastVideoDuration.current && lastWatchTime.current > 0) {
+          navigator.sendBeacon(
+            `/api/v1/videos/watch-progress/${videoId}`,
+            JSON.stringify({
+              watchTime: lastWatchTime.current,
+              duration: lastVideoDuration.current
+            })
+          );
+        }
+  };
+
+}, [videoId]);
 
   const fetchVideoData = async () => {
     try {
@@ -90,9 +133,18 @@ function VideoDetail() {
     <div className="video-detail-page">
       <div className="video-player-section">
         <div className="video-player">
-          <video controls src={video.videoFile} poster={video.thumbnail}>
-            Your browser does not support the video tag.
-          </video>
+          <video 
+            ref={videoRef} 
+            controls 
+            src={video.videoFile} 
+            poster={video.thumbnail}
+            onTimeUpdate={(e) => {
+              lastWatchTime.current = e.target.currentTime;
+            }}
+            onLoadedMetadata={(e) => {
+              lastVideoDuration.current = e.target.duration;
+            }}
+          />
         </div>
 
         <div className="video-info-section">
