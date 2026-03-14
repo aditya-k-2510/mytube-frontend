@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import './Navbar.css';
 
 function Navbar() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -29,6 +31,13 @@ function Navbar() {
               <Link to="/dashboard" className="nav-link">Dashboard</Link>
               
               <div className="user-menu">
+                <button 
+                  onClick={toggleTheme} 
+                  className="theme-toggle"
+                  title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                >
+                  {theme === 'light' ? '🌙' : '☀️'}
+                </button>
                 <Link to={`/channel/${user.username}`} className="user-info">
                   <img 
                     src={user.avatar || '/default-avatar.png'} 
@@ -44,6 +53,13 @@ function Navbar() {
             </>
           ) : (
             <>
+              <button 
+                onClick={toggleTheme} 
+                className="theme-toggle"
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </button>
               <Link to="/login" className="btn btn-primary">Login</Link>
               <Link to="/register" className="btn btn-secondary">Register</Link>
             </>
