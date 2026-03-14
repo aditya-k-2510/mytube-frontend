@@ -80,7 +80,7 @@ export const videoAPI = {
   getUploadStatus: (fileId) => api.get(`/videos/upload-status/${fileId}`),
 
   finishVideoUpload: (data, fileId) => api.post(`videos/finish-upload/${fileId}`, data),
-
+  uploadWatchProgress: (data, videoId) => api.post(`videos/watch-progress/${videoId}`, data),
   updateVideo: (videoId, formData) => api.patch(`/videos/${videoId}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
