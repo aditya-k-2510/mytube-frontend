@@ -11,9 +11,10 @@ html, body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f9f9f9;
-  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Roboto, sans-serif;
+  background-color: #fafafa;
+  color: #1a1a1a;
+  line-height: 1.5;
 }
 
 .app {
@@ -24,7 +25,7 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 20px;
+  padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -32,27 +33,31 @@ body {
 
 .loading {
   text-align: center;
-  padding: 40px;
-  font-size: 18px;
+  padding: 60px 20px;
+  font-size: 16px;
   color: #666;
+  font-weight: 500;
 }
 
 .error-message {
-  background-color: #fee;
-  color: #c00;
-  padding: 12px 16px;
-  border-radius: 4px;
+  background-color: #fee5e5;
+  color: #d32f2f;
+  padding: 14px 18px;
+  border-radius: 8px;
   margin-bottom: 16px;
+  border-left: 4px solid #d32f2f;
+  font-size: 14px;
 }
 
 .btn {
-  padding: 10px 20px;
+  padding: 10px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  letter-spacing: 0.3px;
 }
 
 .btn:disabled {
@@ -61,45 +66,64 @@ body {
 }
 
 .btn-primary {
-  background-color: #ff0000;
+  background-color: #e63946;
   color: white;
+  box-shadow: 0 2px 8px rgba(230, 57, 70, 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #cc0000;
+  background-color: #d32f2f;
+  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.35);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-secondary {
-  background-color: #e0e0e0;
+  background-color: #f0f0f0;
   color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #ccc;
+  background-color: #e8e8e8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .btn-danger {
-  background-color: #dc3545;
+  background-color: #d32f2f;
   color: white;
+  box-shadow: 0 2px 8px rgba(211, 47, 47, 0.2);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #c82333;
+  background-color: #b71c1c;
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.35);
+  transform: translateY(-2px);
+}
+
+.btn-danger:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-small {
-  padding: 6px 12px;
+  padding: 8px 16px;
   font-size: 12px;
+  border-radius: 6px;
 }
 
 .btn-text {
   background: none;
-  color: #606060;
-  padding: 4px 8px;
+  color: #666;
+  padding: 6px 12px;
+  box-shadow: none;
 }
 
 .btn-text:hover {
-  color: #000;
+  color: #e63946;
+  background-color: rgba(230, 57, 70, 0.05);
 }
 
 .btn-icon {
