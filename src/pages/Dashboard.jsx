@@ -104,7 +104,7 @@ function Dashboard() {
       }
       const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
       const BATCH_SIZE = 5;
-      uploadedChunks.current = (Math.max(Math.floor(uploadedChunksList.length/BATCH_SIZE)-1), 0)*BATCH_SIZE;
+      uploadedChunks.current = Math.max(Math.floor(uploadedChunksList.length/BATCH_SIZE)-1, 0)*BATCH_SIZE;
       let currentChunkIndex = uploadedChunks.current;
       while(currentChunkIndex<totalChunks) {
         const chunkPromises = [];
