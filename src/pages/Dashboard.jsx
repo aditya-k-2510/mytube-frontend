@@ -124,6 +124,7 @@ function Dashboard() {
         }
         await Promise.all(chunkPromises);
       }
+      console.log("ok");
       await videoAPI.finishVideoUpload({
         totalChunks,
         fileName: videoFile.name
@@ -139,6 +140,7 @@ function Dashboard() {
     } catch (error) {
       console.error('Upload failed:', error);
       if(error.response?.status == 410) {
+        localStorage.removeItem("pendingUpload")
         alert("session expired....please restart");
         return;
       }
