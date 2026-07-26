@@ -129,7 +129,7 @@ function Dashboard() {
         totalChunks,
         fileName: videoFile.name
       }, fileId);
-      alert("Video uploaded successfully!!!");
+      alert("video added for processing");
       localStorage.removeItem("pendingUpload")
       setUploadFormOpen(false);
       setUploadProgress(0);
