@@ -77,6 +77,8 @@ export const videoAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 
+  getStreamUrls: (videoId) => api.get(`/videos/${videoId}/stream`),
+  
   getUploadStatus: (fileId) => api.get(`/videos/upload-status/${fileId}`),
 
   finishVideoUpload: (data, fileId) => api.post(`videos/finish-upload/${fileId}`, data),

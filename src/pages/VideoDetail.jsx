@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import Hls from 'hls.js';
 import { videoAPI, commentAPI, likeAPI, subscriptionAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import './VideoDetail.css';
@@ -8,6 +9,7 @@ function VideoDetail() {
   const { videoId } = useParams();
   const { user } = useAuth();
   const videoRef = useRef(null);
+  const hlsRef = useRef(null);
   const lastWatchTime = useRef(0);
   const lastVideoDuration = useRef(0);
   const [video, setVideo] = useState(null);
@@ -15,9 +17,17 @@ function VideoDetail() {
   const [loading, setLoading] = useState(true);
   const [commentContent, setCommentContent] = useState('');
   const [liked, setLiked] = useState(false);
+  const [streamUrls, setStreamUrls] = useState(null);
 
   useEffect(() => {
-    fetchVideoData();
+    setStreamUrls(null);
+    const loadVideo = async () => {
+      const videoData = await fetchVideoData();
+      if (videoData?.processingStatus === 'ready') {
+        fetchStreamUrls();
+      }
+    };
+    loadVideo();
     fetchComments();
   }, [videoId]);
 
@@ -61,14 +71,59 @@ function VideoDetail() {
 
 }, [videoId]);
 
+  useEffect(() => {
+    if (!streamUrls || !videoRef.current) return;
+
+    const videoElement = videoRef.current;
+
+    if (streamUrls.hls && Hls.isSupported()) {
+      const hls = new Hls();
+      hlsRef.current = hls;
+      hls.loadSource(streamUrls.hls);
+      hls.attachMedia(videoElement);
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+         console.error('HLS fatal error:', data.type, data.details);
+         hls.destroy();
+         hlsRef.current = null;
+         videoElement.src = streamUrls.qualities?.['720p'] || streamUrls.fallback;
+      }
+    });
+    
+    } else if (streamUrls.hls && videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+      videoElement.src = streamUrls.hls;
+    } else {
+      videoElement.src = streamUrls.qualities?.['720p'] || streamUrls.fallback;
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [streamUrls]);
+
   const fetchVideoData = async () => {
     try {
       const { data } = await videoAPI.getVideoById(videoId);
       setVideo(data.data);
       setLoading(false);
+      return data.data;
     } catch (error) {
       console.error('Failed to fetch video:', error);
       setLoading(false);
+      return null;
+    }
+  };
+
+  const fetchStreamUrls = async () => {
+    try {
+      const { data } = await videoAPI.getStreamUrls(videoId);
+      setStreamUrls(data.data);
+    } catch (error) {
+      console.error('Failed to fetch stream urls:', error);
     }
   };
 
@@ -133,18 +188,23 @@ function VideoDetail() {
     <div className="video-detail-page">
       <div className="video-player-section">
         <div className="video-player">
-          <video 
-            ref={videoRef} 
-            controls 
-            src={video.videoFile} 
-            poster={video.thumbnail}
-            onTimeUpdate={(e) => {
-              lastWatchTime.current = e.target.currentTime;
-            }}
-            onLoadedMetadata={(e) => {
-              lastVideoDuration.current = e.target.duration;
-            }}
-          />
+          {video.processingStatus === 'ready' ? (
+            <video
+              ref={videoRef}
+              controls
+              poster={video.thumbnail}
+              onTimeUpdate={(e) => {
+                lastWatchTime.current = e.target.currentTime;
+              }}
+              onLoadedMetadata={(e) => {
+                lastVideoDuration.current = e.target.duration;
+              }}
+            />
+          ) : (
+            <div className="video-processing-message">
+              Video is still processing, please check back soon
+            </div>
+          )}
         </div>
 
         <div className="video-info-section">
