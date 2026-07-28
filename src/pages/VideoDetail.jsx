@@ -72,38 +72,47 @@ function VideoDetail() {
 }, [videoId]);
 
   useEffect(() => {
-    if (!streamUrls || !videoRef.current) return;
+   if (!streamUrls || !videoRef.current) return;
 
-    const videoElement = videoRef.current;
+   const videoElement = videoRef.current;
+   console.log("videoElement:", videoElement);
+   console.log("Hls.isSupported():", Hls.isSupported());
+   console.log("streamUrls.hls:", streamUrls.hls);
 
-    if (streamUrls.hls && Hls.isSupported()) {
+   if (streamUrls.hls && Hls.isSupported()) {
+      console.log("→ Taking HLS.js branch");
       const hls = new Hls();
       hlsRef.current = hls;
       hls.loadSource(streamUrls.hls);
       hls.attachMedia(videoElement);
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
-         console.error('HLS fatal error:', data.type, data.details);
-         hls.destroy();
-         hlsRef.current = null;
-         videoElement.src = streamUrls.qualities?.['720p'] || streamUrls.fallback;
-      }
-    });
-    
-    } else if (streamUrls.hls && videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-      videoElement.src = streamUrls.hls;
-    } else {
-      videoElement.src = streamUrls.qualities?.['720p'] || streamUrls.fallback;
-    }
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+         console.log("✅ Manifest parsed successfully, levels:", hls.levels);
+      });
 
-    return () => {
+      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+        console.log("🔄 Quality switched to level:", data.level, hls.levels[data.level]);
+      });
+      
+      hls.on(Hls.Events.ERROR, (event, data) => {
+         console.error("❌ HLS ERROR:", data.type, data.details, data);
+      });
+
+   } else if (streamUrls.hls && videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+      console.log("→ Taking native Safari HLS branch");
+      videoElement.src = streamUrls.hls;
+   } else {
+      console.log("→ Taking FALLBACK direct MP4 branch");
+      videoElement.src = streamUrls.qualities?.['720p'] || streamUrls.fallback;
+   }
+
+   return () => {
       if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
+         hlsRef.current.destroy();
+         hlsRef.current = null;
       }
-    };
-  }, [streamUrls]);
+   };
+}, [streamUrls]);
 
   const fetchVideoData = async () => {
     try {
