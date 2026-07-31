@@ -64,8 +64,8 @@ function Dashboard() {
     e.preventDefault();
     uploadedChunks.current = 0;
     setUploadProgress(0);
-    if (!videoFile || !thumbnail) {
-      alert('Please select video and thumbnail');
+    if (!videoFile) {
+      alert('Please select video file');
       return;
     }
     setUploading(true);
@@ -73,17 +73,23 @@ function Dashboard() {
       const initForm = new FormData();
       initForm.append('title', uploadData.title);
       initForm.append('description', uploadData.description);
-      initForm.append('thumbnail', thumbnail);
+      if (thumbnail) {
+          initForm.append('thumbnail', thumbnail);
+      }
       let uploadedChunksList = [];
       let fileId;
       let pending = JSON.parse(localStorage.getItem("pendingUpload")||"{}");
       const hasPending = Object.keys(pending).length !== 0;
+      const thumbnailMatches = 
+          (thumbnail === null && pending.thumbnailName === null) ||
+          (thumbnail !== null && pending.thumbnailName === thumbnail.name);
+
       if (hasPending && 
           pending.title == uploadData.title && 
           pending.description == uploadData.description && 
-          thumbnail.name==pending.thumbnailName && 
+          thumbnailMatches && 
           videoFile.name == pending.videoFileName) {
-
+          
         fileId = pending.fileId;
         const { data } = await videoAPI.getUploadStatus(fileId)
         uploadedChunksList = data.data
@@ -93,12 +99,12 @@ function Dashboard() {
         const initRes = await videoAPI.initUpload(initForm);
         fileId = initRes.data.data;
         pending = {
-              fileId,
-              thumbnailName: thumbnail.name,
-              videoFileName: videoFile.name,
-              title: uploadData.title,
-              description: uploadData.description,
-              createdAt: Date.now()
+            fileId,
+            thumbnailName: thumbnail?.name || null,
+            videoFileName: videoFile.name,
+            title: uploadData.title,
+            description: uploadData.description,
+            createdAt: Date.now()
         };
         localStorage.setItem("pendingUpload", JSON.stringify(pending))
       }
@@ -242,14 +248,13 @@ function Dashboard() {
           </div>
 
           <div className="form-group">
-            <label>Thumbnail</label>
-            <input
+          <label>Thumbnail (optional — auto-generated if not provided)</label>
+          <input
               type="file"
               accept="image/*"
-              onChange={(e) => setThumbnail(e.target.files[0])}
-              required
-            />
-          </div>
+              onChange={(e) => setThumbnail(e.target.files[0] || null)}
+          />
+        </div>
 
           <button type="submit" className="btn btn-primary" disabled={uploading}>
             {uploading ? 'Uploading...' : 'Upload Video'}
