@@ -18,9 +18,11 @@ function VideoDetail() {
   const [commentContent, setCommentContent] = useState('');
   const [liked, setLiked] = useState(false);
   const [streamUrls, setStreamUrls] = useState(null);
-
+  const [videoLoadError, setVideoLoadError] = useState(false);
+  
   useEffect(() => {
     setStreamUrls(null);
+    setVideoLoadError(false); 
     const loadVideo = async () => {
       const videoData = await fetchVideoData();
       if (videoData?.processingStatus === 'ready') {
@@ -93,9 +95,14 @@ function VideoDetail() {
       hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
         console.log("🔄 Quality switched to level:", data.level, hls.levels[data.level]);
       });
-      
       hls.on(Hls.Events.ERROR, (event, data) => {
-         console.error("❌ HLS ERROR:", data.type, data.details, data);
+      console.error("❌ HLS ERROR:", data.type, data.details, data);
+      if (data.fatal) {
+          console.error("Fatal HLS error, falling back to direct MP4");
+          hls.destroy();
+          hlsRef.current = null;
+          videoElement.src = streamUrls.qualities?.['720p'] || streamUrls.fallback;
+        }
       });
 
    } else if (streamUrls.hls && videoElement.canPlayType('application/vnd.apple.mpegurl')) {
@@ -198,21 +205,31 @@ function VideoDetail() {
       <div className="video-player-section">
         <div className="video-player">
           {video.processingStatus === 'ready' ? (
-            <video
-              ref={videoRef}
-              controls
-              poster={video.thumbnail}
-              onTimeUpdate={(e) => {
-                lastWatchTime.current = e.target.currentTime;
-              }}
-              onLoadedMetadata={(e) => {
-                lastVideoDuration.current = e.target.duration;
-              }}
-            />
+              videoLoadError ? (
+                <div className="video-error-message">
+                    This video is temporarily unavailable. Please try again later.
+                </div>
+              ) : (
+                <video
+                    ref={videoRef}
+                    controls
+                    poster={video.thumbnail}
+                    onTimeUpdate={(e) => {
+                      lastWatchTime.current = e.target.currentTime;
+                    }}
+                    onLoadedMetadata={(e) => {
+                      lastVideoDuration.current = e.target.duration;
+                    }}
+                    onError={(e) => {
+                      console.error('Video element error:', e.target.error);
+                      setVideoLoadError(true);
+                    }}
+                />
+              )
           ) : (
-            <div className="video-processing-message">
-              Video is still processing, please check back soon
-            </div>
+              <div className="video-processing-message">
+                Video is still processing, please check back soon
+              </div>
           )}
         </div>
 
