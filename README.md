@@ -6,7 +6,7 @@ A React client for MyTube — a YouTube-style video platform. This is the **fron
 
 The upload form lives in [Dashboard.jsx](src/pages/Dashboard.jsx) (`handleUploadVideo`). From the user's point of view:
 
-1. **Select files.** The user opens "Upload New Video," fills in title/description, picks a video file, and optionally a thumbnail. If no thumbnail is picked, the field is simply left `null` — the backend generates one from the video instead, so the UI never blocks submission on it.
+1. **Select files.** The user opens "Upload New Video," fills in title/description, picks a video file, and optionally a thumbnail. If no thumbnail is picked, the field is simply left `null` — the backend generates one from the video instead, so the UI never blocks submission on it. The thumbnail `<input type="file">` carries no `required` attribute (unlike the video file input, which does); when `thumbnail` is `null`, the `FormData` sent to `initUpload` omits the `thumbnail` field entirely rather than appending it as an empty/null value.
 
 2. **Upload starts, progress bar appears.** On submit, the file is sliced client-side into 1MB chunks (`CHUNK_SIZE = 1024 * 1024`) and uploaded **5 at a time in parallel** (`BATCH_SIZE = 5`) via `videoAPI.uploadChunk`. Each chunk upload goes through `uploadWithRetry`, which retries up to 3 attempts with a linear backoff (1s, 2s, 3s) before giving up and surfacing the error. As each chunk resolves, `uploadedChunks.current` increments and `uploadProgress` (percentage, shown in the progress bar) updates.
 
@@ -17,6 +17,8 @@ The upload form lives in [Dashboard.jsx](src/pages/Dashboard.jsx) (`handleUpload
 5. **Finishing up.** Once every chunk has been sent, `finishVideoUpload` is called with the total chunk count and filename, `pendingUpload` is cleared from `localStorage`, and the user sees an "video added for processing" confirmation. If the backend responds `410` (the upload session expired server-side, e.g. Redis TTL lapsed or the server restarted), the stale `pendingUpload` entry is cleared and the user is told to restart — there's no partial-resume path across an expired session.
 
 Processing is asynchronous on the backend, so the frontend doesn't wait for transcoding — see [VideoDetail.jsx](src/pages/VideoDetail.jsx), which shows a "Video is still processing, please check back soon" message until `processingStatus` flips to `"ready"`.
+
+The dashboard's video list ([Dashboard.jsx](src/pages/Dashboard.jsx)) renders `video.thumbnail` directly, with no special-case logic for whether that URL came from a user-provided upload or the worker's auto-generated frame — once transcoding completes and populates `thumbnail` on the video document, it just shows up.
 
 ## Personalized Home Feed
 
