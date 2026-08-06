@@ -69,6 +69,7 @@ export const userAPI = {
 // Video APIs
 export const videoAPI = {
   getAllVideos: (params) => api.get('/videos', { params }),
+  getHomeRecommendations: (params) => api.get('/videos/recommendations/home', { params }),
   getVideoById: (videoId) => api.get(`/videos/${videoId}`),
   initUpload: (formData) => api.post('/videos/init-upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
