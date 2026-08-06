@@ -45,9 +45,11 @@ All playback logic lives in [VideoDetail.jsx](src/pages/VideoDetail.jsx), in the
 **Error handling — two distinct layers, deliberately separate:**
 
 - **HLS-specific, non-fatal-vs-fatal.** `hls.on(Hls.Events.ERROR, (event, data) => ...)` inspects `data.fatal`. Only fatal errors act — the code destroys the `Hls` instance (`hls.destroy()`), clears `hlsRef.current`, and falls back to setting `videoElement.src` directly to the 720p (or generic fallback) MP4 URL. Non-fatal HLS errors (a dropped segment, a recoverable network blip) are logged but don't interrupt playback — hls.js handles those internally.
-- **General `<video>` element errors.** The `<video>` tag's own `onError` handler (unrelated to hls.js, catches things like a broken direct-MP4 URL or a codec the browser can't decode at all) sets `videoLoadError` to `true`, which swaps the player out for a plain "This video is temporarily unavailable. Please try again later." message — no attempt to retry or fall back further, since by this point there's nothing left to fall back to.
+- **General `<video>` element errors.** The `<video>` tag's own `onError` handler (unrelated to hls.js, catches things like a broken direct-MP4 URL or a codec the browser can't decode at all) sets `videoLoadError` to `true`, which swaps the player out for a plain "This video is temporarily unavailable. Please try again later." message — no attempt to retry or fall back further, since by this point there's nothing left to fall back to. Because this handler fires on any failed load of the current `src` — including a 404 — it also covers the "dangling reference" case where a file was deleted from storage but its URL is still on the video document in the database.
 
 These are separate because they're different failure domains: an HLS fatal error still has a fallback (direct MP4) worth trying, but a `<video>` element error means even the fallback source failed, so the only sane UI response is to stop pretending a player will work and tell the user plainly.
+
+`videoLoadError` resets to `false` whenever `videoId` changes (the same `useEffect` that clears `streamUrls` on navigation), so navigating from a broken video to a working one doesn't carry the error message over.
 
 **Cleanup.** The effect's return function destroys the `Hls` instance on unmount or whenever `streamUrls` changes (e.g., navigating between videos), preventing orphaned HLS instances from continuing to buffer in the background.
 
