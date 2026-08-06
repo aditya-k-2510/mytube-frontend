@@ -16,26 +16,24 @@ function Home() {
 
   useEffect(() => {
     if (!authLoading) {
-      fetchVideos();
+      fetchRecommendations();
     }
-  }, [page, searchQuery, authLoading]);
+  }, [page, authLoading]);
 
-  const fetchVideos = async () => {
-    // If user is not logged in and videos require auth, don't fetch
+  const fetchRecommendations = async () => {
     if (!user) {
       setLoading(false);
       return;
     }
-
     try {
       setLoading(true);
       setError(null);
       const params = {
-        page,
-        limit: 12,
-        ...(searchQuery && { query: searchQuery }),
+         page,
+         limit: 12,
+         ...(searchQuery && { query: searchQuery }),
       };
-      const { data } = await videoAPI.getAllVideos(params);
+      const { data } = await videoAPI.getHomeRecommendations(params);
       setVideos(data.data.videos);
       setTotalPages(data.data.totalPages);
     } catch (err) {
@@ -50,7 +48,7 @@ function Home() {
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchVideos();
+    fetchRecommendations();
   };
 
   if (authLoading) {
