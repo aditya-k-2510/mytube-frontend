@@ -18,6 +18,16 @@ The upload form lives in [Dashboard.jsx](src/pages/Dashboard.jsx) (`handleUpload
 
 Processing is asynchronous on the backend, so the frontend doesn't wait for transcoding — see [VideoDetail.jsx](src/pages/VideoDetail.jsx), which shows a "Video is still processing, please check back soon" message until `processingStatus` flips to `"ready"`.
 
+## Personalized Home Feed
+
+The home page ([Home.jsx](src/pages/Home.jsx)) no longer shows a generic paginated list of all videos — it renders a personalized feed powered by the backend's recommendation endpoint.
+
+- `fetchRecommendations` calls `videoAPI.getHomeRecommendations` (`GET /videos/recommendations/home`) instead of the old `GET /videos` listing endpoint.
+- Ranking is entirely server-side: videos come back already ordered by the backend's scoring system (subscription signal + popularity + recency). The frontend doesn't implement any ranking logic of its own — it just renders whatever order the API returns.
+- Search filters within the personalized feed rather than switching to a separate browse mode. The search input (`searchQuery`) is only sent to the backend on form submit (`handleSearch`, wired to the form's `onSubmit`), not on every keystroke — this avoids hammering the API on each character typed.
+- Pagination (`page`/`totalPages`, Previous/Next buttons) works identically to the old all-videos listing: page 1 shows the highest-scoring content, later pages show lower-priority content.
+- The recommendations endpoint's response shape (`{ videos, totalVideos, currentPage, totalPages }`) is identical to the old `getAllVideos` shape, so `VideoCard` and the pagination UI required zero changes to consume it.
+
 ## Adaptive Video Player
 
 All playback logic lives in [VideoDetail.jsx](src/pages/VideoDetail.jsx), in the `useEffect` keyed on `streamUrls` (populated once `fetchStreamUrls` resolves, which itself only fires once `fetchVideoData` reports `processingStatus === 'ready'`).
