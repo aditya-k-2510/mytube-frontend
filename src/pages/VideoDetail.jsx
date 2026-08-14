@@ -19,10 +19,18 @@ function VideoDetail() {
   const [liked, setLiked] = useState(false);
   const [streamUrls, setStreamUrls] = useState(null);
   const [videoLoadError, setVideoLoadError] = useState(false);
-  
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef = useRef(null);
+
   useEffect(() => {
     setStreamUrls(null);
-    setVideoLoadError(false); 
+    setVideoLoadError(false);
+    setChatOpen(false);
+    setChatHistory([]);
+    setChatInput('');
     const loadVideo = async () => {
       const videoData = await fetchVideoData();
       if (videoData?.processingStatus === 'ready') {
@@ -121,6 +129,10 @@ function VideoDetail() {
    };
 }, [streamUrls]);
 
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
+
   const fetchVideoData = async () => {
     try {
       const { data } = await videoAPI.getVideoById(videoId);
@@ -197,6 +209,134 @@ function VideoDetail() {
     }
   };
 
+  const parseTimeToSeconds = (timeString) => {
+    const parts = timeString.split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  };
+
+  const seekTo = (seconds) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = seconds;
+    videoRef.current.play();
+    videoRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const parseMessageWithTimestamps = (text) => {
+    const regex = /\[\[(\d+:\d{2}(?::\d{2})?)\]\]/g;
+    const matches = [...text.matchAll(regex)];
+    if (matches.length === 0) return text;
+
+    const result = [];
+    let lastIndex = 0;
+    matches.forEach((match, i) => {
+      const timeString = match[1];
+      if (match.index > lastIndex) {
+        result.push(text.slice(lastIndex, match.index));
+      }
+      result.push(
+        <button
+          key={`timestamp-${match.index}`}
+          className="timestamp-link"
+          onClick={() => seekTo(parseTimeToSeconds(timeString))}
+        >
+          {`▶ ${timeString}`}
+        </button>
+      );
+      lastIndex = match.index + match[0].length;
+    });
+    if (lastIndex < text.length) {
+      result.push(text.slice(lastIndex));
+    }
+    return result;
+  };
+
+  const sendMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = { role: "user", content: chatInput };
+    const updatedHistory = [...chatHistory, userMessage];
+    setChatHistory([...updatedHistory, { role: "assistant", content: "", complete: false }]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const response = await fetch(`/api/v1/videos/${videoId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: userMessage.content,
+          history: chatHistory.slice(-6),
+        }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        let streamDone = false;
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') {
+            streamDone = true;
+            break;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              setChatHistory((prev) => {
+                const next = [...prev];
+                next[next.length - 1] = { role: "assistant", content: parsed.error, complete: true };
+                return next;
+              });
+              streamDone = true;
+              break;
+            }
+            if (parsed.text) {
+              fullResponse += parsed.text;
+              setChatHistory((prev) => {
+                const next = [...prev];
+                next[next.length - 1] = { role: "assistant", content: fullResponse, complete: false };
+                return next;
+              });
+            }
+          } catch (err) {
+            // ignore malformed chunk
+          }
+        }
+        if (streamDone) break;
+      }
+
+      setChatHistory((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { role: "assistant", content: fullResponse, complete: true };
+        return next;
+      });
+    } catch (error) {
+      setChatHistory((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = {
+          role: "assistant",
+          content: "Something went wrong. Please try again.",
+          complete: true,
+        };
+        return next;
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading">Loading video...</div>;
   if (!video) return <div className="error">Video not found</div>;
 
@@ -268,6 +408,97 @@ function VideoDetail() {
           </div>
         </div>
       </div>
+
+      {video.transcriptStatus === 'ready' && (
+        <div className="video-chat-section">
+          <button onClick={() => setChatOpen(!chatOpen)} className="btn btn-secondary">
+            {chatOpen ? 'Close AI Chat' : '💬 Ask AI About This Video'}
+          </button>
+
+          {chatOpen && (
+            <div className="chat-panel">
+              <div className="chat-header">
+                <span>🤖 Ask about this video</span>
+                <button
+                  onClick={() => setChatHistory([])}
+                  className="btn btn-text btn-small"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="chat-messages">
+                {chatHistory.length === 0 && (
+                  <div className="chat-empty">
+                    <p>Ask anything about this video</p>
+                    <div className="chat-suggestions">
+                      <span
+                        className="chat-suggestion"
+                        onClick={() => setChatInput('Summarize this video')}
+                      >
+                        Summarize this video
+                      </span>
+                      <span
+                        className="chat-suggestion"
+                        onClick={() => setChatInput('What are the main topics covered?')}
+                      >
+                        What are the main topics covered?
+                      </span>
+                      <span
+                        className="chat-suggestion"
+                        onClick={() => setChatInput('What was discussed at the start?')}
+                      >
+                        What was discussed at the start?
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {chatHistory.map((msg, index) => (
+                  <div key={index} className={`chat-message ${msg.role}`}>
+                    <span className="chat-avatar">{msg.role === 'user' ? '👤' : '🤖'}</span>
+                    <div className="chat-content">
+                      {msg.role === 'user' && msg.content}
+                      {msg.role === 'assistant' && !msg.complete && (
+                        msg.content ? msg.content : (
+                          <span className="chat-thinking">●●●</span>
+                        )
+                      )}
+                      {msg.role === 'assistant' && msg.complete && parseMessageWithTimestamps(msg.content)}
+                    </div>
+                  </div>
+                ))}
+
+                <div ref={chatBottomRef} />
+              </div>
+
+              <div className="chat-input-row">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && !chatLoading) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder="Ask about this video..."
+                  disabled={chatLoading}
+                  className="chat-input"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="btn btn-primary"
+                >
+                  {chatLoading ? '...' : 'Send'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="comments-section">
         <h2>{comments.length} Comments</h2>
