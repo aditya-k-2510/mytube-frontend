@@ -267,10 +267,23 @@ function VideoDetail() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          message: userMessage.content,
-          history: chatHistory.slice(-6),
+        message: userMessage.content,
+        history: chatHistory
+            .slice(-6)
+            .filter(msg => msg.content && msg.content.trim().length > 0)  
+            .map(({ role, content }) => ({ role, content })),
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        setChatHistory((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { role: "assistant", content: errorText, complete: true };
+          return next;
+        });
+        return;
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
