@@ -55,6 +55,25 @@ These are separate because they're different failure domains: an HLS fatal error
 
 **Watch progress**, unrelated to playback mechanics but tracked from the same page: `onTimeUpdate`/`onLoadedMetadata` keep `lastWatchTime`/`lastVideoDuration` refs current, and two separate mechanisms flush that data to the backend — a `visibilitychange` listener firing `navigator.sendBeacon` when the tab is hidden, and the same beacon call on component unmount — both hitting `POST /videos/watch-progress/:videoId`, chosen over a normal `fetch`/`axios` call because `sendBeacon` is designed to reliably complete even as the page is being torn down.
 
+## AI Video Chatbot
+
+[VideoDetail.jsx](src/pages/VideoDetail.jsx) includes a chatbot panel that lets a viewer ask questions about the video they're currently watching. The chat entry point only renders when the video's `transcriptStatus` is `"ready"` — meaning the backend worker successfully generated a transcript via Whisper; for any other status (`pending`/`failed`) the panel simply doesn't appear.
+
+**Streaming UI.** Submitting a message sends it to the backend chat endpoint, which streams its response over Server-Sent Events. The frontend reads that stream via `response.body.getReader()`, appending each decoded text chunk to the last assistant entry in `chatHistory` state as it arrives — producing a word-by-word streaming effect rather than waiting for the full reply. Once the stream ends, that message is marked with a `complete: true` flag and run through timestamp parsing.
+
+**Timestamp seeking.** The backend LLM formats timestamp references as `[[MM:SS]]`. The frontend matches these with `/\[\[(\d+:\d{2}(?::\d{2})?)\]\]/g`, replacing each match with a clickable button in the rendered message. Clicking one calls `seekTo(seconds)`, which sets `videoRef.current.currentTime` and calls `videoRef.current.play()` — so a timestamp reference in a chat response immediately jumps the video to that point and resumes playback.
+
+**Conversation history.** Each request sends the last 6 messages (3 user/assistant turns) from `chatHistory` alongside the new message, giving the backend enough context for follow-up questions without growing the payload unbounded. Before sending, empty messages and the frontend-only `complete` flag are stripped from the history so the request body carries only what the backend needs.
+
+**UX details:**
+- The chat panel resets whenever the user navigates to a different video.
+- Suggestion chips are shown in place of messages when `chatHistory` is empty.
+- The panel auto-scrolls to the latest message as streamed chunks arrive.
+- Enter submits the message; Shift+Enter inserts a newline instead.
+- A "Clear" button resets `chatHistory` to start a fresh conversation.
+
+**Why backend-mediated instead of calling the LLM directly.** The chat request goes through the backend rather than calling Groq directly from the browser. This keeps the API key server-side and lets the backend own transcript caching and history cleaning before forwarding the request to Groq. The frontend's responsibility is limited to managing conversation state and rendering the streamed response.
+
 ## Key Pages & Components
 
 ```
