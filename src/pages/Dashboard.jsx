@@ -90,11 +90,23 @@ function Dashboard() {
           pending.description == uploadData.description && 
           thumbnailMatches && 
           videoFile.name == pending.videoFileName) {
-          
-        fileId = pending.fileId;
-        const { data } = await videoAPI.getUploadStatus(fileId)
-        uploadedChunksList = data.data
-        console.log(uploadedChunksList)
+          fileId = pending.fileId;
+          const { data } = await videoAPI.getUploadStatus(fileId);
+          // Handle case where upload was already completed
+          // (user refreshed before receiving the 202 response)
+          if (data.data.alreadyCompleted) {
+              alert("Your previous upload was already processed successfully!");
+              localStorage.removeItem("pendingUpload");
+              setUploadFormOpen(false);
+              setUploading(false);
+              setUploadData({ title: '', description: '' });   
+              setVideoFile(null);                               
+              setThumbnail(null);    
+              fetchDashboardData();
+              return;
+          }
+          uploadedChunksList = data.data;
+          console.log(uploadedChunksList);
       }
       else {
         const initRes = await videoAPI.initUpload(initForm);
