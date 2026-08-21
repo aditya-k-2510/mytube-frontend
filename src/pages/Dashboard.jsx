@@ -20,15 +20,16 @@ function Dashboard() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const uploadedChunks = useRef(0);
 
-  // useEffect(() => {
-  //   let pending = JSON.parse(localStorage.getItem("pendingUpload") || "{}");
-  //   if (pending.createdAt) {
-  //     const twoMinutes = 5 * 60 * 1000;
-  //     if (Date.now() - pending.createdAt > twoMinutes) {
-  //       localStorage.removeItem("pendingUpload");
-  //     }
-  //   }
-  // }, []);
+  useEffect(() => {
+   const pending = JSON.parse(localStorage.getItem("pendingUpload") || "{}");
+   if (pending.createdAt) {
+      const TWO_HOURS = 2 * 60 * 60 * 1000;  // matches Redis session TTL
+      if (Date.now() - pending.createdAt > TWO_HOURS) {
+         localStorage.removeItem("pendingUpload");
+         console.log("Cleared stale pending upload from localStorage");
+      }
+   }
+}, []);
   useEffect(() => {
     fetchDashboardData();
   }, []);
