@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Hls from 'hls.js';
 import { videoAPI, commentAPI, likeAPI, subscriptionAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -48,12 +50,11 @@ function VideoDetail() {
       if (v && v.duration && v.currentTime>0) {
         navigator.sendBeacon(
           `/api/v1/videos/watch-progress/${videoId}`,
-          JSON.stringify(
-          {
+          new Blob([JSON.stringify({
             watchTime: v.currentTime,
             duration: v.duration
-          }
-        ));
+          })], { type: "application/json" })
+        );
       }
     }
   };
@@ -71,10 +72,10 @@ function VideoDetail() {
         if (lastVideoDuration.current && lastWatchTime.current > 0) {
           navigator.sendBeacon(
             `/api/v1/videos/watch-progress/${videoId}`,
-            JSON.stringify({
+            new Blob([JSON.stringify({
               watchTime: lastWatchTime.current,
               duration: lastVideoDuration.current
-            })
+            })], { type: "application/json" })
           );
         }
   };
@@ -223,33 +224,36 @@ function VideoDetail() {
     videoRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  const parseMessageWithTimestamps = (text) => {
-    const regex = /\[\[(\d+:\d{2}(?::\d{2})?)\]\]/g;
-    const matches = [...text.matchAll(regex)];
-    if (matches.length === 0) return text;
+  const renderChatMarkdown = (text) => {
+    const withTimestampLinks = text.replace(
+      /\[\[(\d+:\d{2}(?::\d{2})?)(?:\s*[-–]\s*(\d+:\d{2}(?::\d{2})?))?\]\]/g,
+      (_, start, end) => `[▶ ${end ? `${start}–${end}` : start}](timestamp:${start})`
+    );
 
-    const result = [];
-    let lastIndex = 0;
-    matches.forEach((match, i) => {
-      const timeString = match[1];
-      if (match.index > lastIndex) {
-        result.push(text.slice(lastIndex, match.index));
-      }
-      result.push(
-        <button
-          key={`timestamp-${match.index}`}
-          className="timestamp-link"
-          onClick={() => seekTo(parseTimeToSeconds(timeString))}
-        >
-          {`▶ ${timeString}`}
-        </button>
-      );
-      lastIndex = match.index + match[0].length;
-    });
-    if (lastIndex < text.length) {
-      result.push(text.slice(lastIndex));
-    }
-    return result;
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        urlTransform={(url) => (url.startsWith('timestamp:') ? url : defaultUrlTransform(url))}
+        components={{
+          table: ({ children }) => (
+            <div className="chat-table-wrap"><table>{children}</table></div>
+          ),
+          a: ({ href, children }) => {
+            if (href?.startsWith('timestamp:')) {
+              const timeString = href.slice('timestamp:'.length);
+              return (
+                <button className="timestamp-link" onClick={() => seekTo(parseTimeToSeconds(timeString))}>
+                  {children}
+                </button>
+              );
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+          },
+        }}
+      >
+        {withTimestampLinks}
+      </ReactMarkdown>
+    );
   };
 
   const sendMessage = async () => {
@@ -477,7 +481,7 @@ function VideoDetail() {
                           <span className="chat-thinking">●●●</span>
                         )
                       )}
-                      {msg.role === 'assistant' && msg.complete && parseMessageWithTimestamps(msg.content)}
+                      {msg.role === 'assistant' && msg.complete && renderChatMarkdown(msg.content)}
                     </div>
                   </div>
                 ))}
